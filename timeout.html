@@ -1,0 +1,19 @@
+<script type='text/javascript'>
+var time = 10000; //設定倒數10秒
+function DisableEnable(objid) {
+    if (time <= 0) {
+        document.getElementById(objid).innerHTML = 'You can click again';
+        //document.getElementById(objid).disabled = false;
+    } else {
+        //document.getElementById(objid).disabled = true;
+        document.getElementById(objid).innerHTML = (time / 1000) + " sec...";
+        setTimeout("DisableEnable('" + objid + "')", 1000);
+    }
+    time -= 1000;
+}
+</script>
+
+<body onload="DisableEnable('timeout')" >
+	<label id="timeout" type="text"  >
+    
+</body>

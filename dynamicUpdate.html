@@ -1,0 +1,211 @@
+<html>
+
+<head>
+    <meta charset="UTF-8">
+    <script src="js/jquery.js"></script>
+    <script src="js/highstock.js"></script>
+    <script src="js/exporting.js"></script>
+    <!-- css -->
+    <link href="css/bootstrap.min.css" rel="stylesheet" />
+    <!--themes-->
+    <script src="js/themes/sand-signika.js"></script>
+    <script>
+    var datum_point = 10;
+    var init_value = [datum_point + 1, datum_point + 2, datum_point + 8, datum_point + 2, datum_point + 1, datum_point - 5, datum_point - 3, datum_point + 2, datum_point + 1];
+    var count = 0;
+    var min = 0.9;
+
+    var patten_Variance_Percent = 0;
+    //setting value
+    var normal_movers = 0.1;
+    var mutation_movers = 0.8;
+    var mutation_Percent = 0.1;
+    var threshold_Percent = 5;
+
+    startPattenChart = null;
+    $(function() {
+
+        Highcharts.setOptions({
+            global: {
+                useUTC: false
+            }
+        });
+
+        function add_new_data(errtime, errvalue) {
+            //先取得目前的row數
+            var num = document.getElementById("mytable").rows.length;
+            //建立新的tr 因為是從0開始算 所以目前的row數剛好為目前要增加的第幾個tr
+            var Tr = document.getElementById("mytable").insertRow(num);
+            //建立新的td 而Tr.cells.length就是這個tr目前的td數
+            Td = Tr.insertCell(Tr.cells.length);
+            //而這個就是要填入td中的innerHTML
+            Td.innerHTML = errtime;
+            //這裡也可以用不同的變數來辨別不同的td (我是用同一個比較省事XD)
+            Td = Tr.insertCell(Tr.cells.length);
+            Td.innerHTML = errvalue;
+            Td = Tr.insertCell(Tr.cells.length);
+            Td.innerHTML = '<span class="label label-important">Important</span>';
+            //這樣就好囉 記得td數目要一樣 不然會亂掉~
+        }
+
+
+        // Create the chart
+        $('#live_chart').highcharts('StockChart', {
+            chart: {
+                events: {
+                    load: function() {
+                        // set up the updating of the chart each second
+                        var series = this.series[0];
+
+                        setInterval(function() {
+                            var x = (new Date()).getTime(), // current time
+                                y = 0;
+
+                            if (count >= init_value.length) {
+                                count = 0;
+                                console.log(Math.round(patten_Variance_Percent * 10) + "%");
+                                if (Math.round(patten_Variance_Percent * 10) > threshold_Percent) {
+                                    var temp = new Date(x);
+                                    var time_str = temp.getHours() + ":" + temp.getMinutes() + ":" + temp.getSeconds();
+                                    var value_str = Math.round(patten_Variance_Percent * 10) + "%";
+                                    add_new_data(time_str, value_str);
+                                    console.log("異常時間點  " + temp.getHours() + ":" + temp.getMinutes() + ":" + temp.getSeconds());
+                                }
+                                patten_Variance_Percent = 0;
+                            }
+                            y = init_value[count] * (Math.random() * normal_movers + min);
+                            if (Math.random() < mutation_Percent) {
+                                y = init_value[count] * (Math.random() * mutation_movers + min);
+                            }
+                            patten_Variance_Percent += Math.abs((y - init_value[count]) / init_value[count]);
+                            count += 1;
+                            series.addPoint([x, y], true, true);
+                        }, 200);
+                    }
+                }
+            },
+
+            rangeSelector: {
+                buttons: [{
+                    count: 1,
+                    type: 'minute',
+                    text: '1M'
+                }, {
+                    count: 5,
+                    type: 'minute',
+                    text: '5M'
+                }, {
+                    type: 'all',
+                    text: 'All'
+                }],
+                inputEnabled: false,
+                selected: 2
+            },
+
+            title: {
+                text: 'Live raw data'
+            },
+
+            exporting: {
+                enabled: false
+            },
+
+            series: [{
+                name: 'Random data',
+                data: (function() {
+                    // generate an array of random data
+                    var data = [],
+                        time = (new Date()).getTime(),
+                        i;
+
+                    for (i = -200; i <= 0; i += 1) {
+                        data.push([
+                            time + i * 1000,
+                            1
+                        ]);
+                    }
+                    return data;
+                }())
+            }]
+        });
+
+        function createPattenChart() {
+            $('#patten_chart').highcharts('StockChart', {
+                title: {
+                    text: 'Patten Modeling'
+                },
+                series: [{
+                    name: 'value',
+                    data: init_value,
+                    tooltip: {
+                        valueDecimals: 2
+                    }
+                }]
+            });
+        }
+        startPattenChart = createPattenChart;
+    });
+
+
+    var time = 10000; //設定倒數10秒
+    function DisableEnable(objid) {
+        if (time <= 0) {
+            startPattenChart();
+        } else {
+            document.getElementById(objid).innerHTML = "產生模型中 " + (time / 1000) + " sec...";
+            setTimeout("DisableEnable('" + objid + "')", 1000);
+        }
+        time -= 1000;
+    }
+    </script>
+</head>
+
+<body onload="DisableEnable('patten_chart')">
+    <div class="row-fluid">
+        <div class="span12">
+            <div id="live_chart" style="height: 400px; min-width: 310px"></div>
+        </div>
+    </div>
+    <br>
+    <div class="row-fluid">
+        <div class="span1"></div>
+        <div class="span3">
+            <div id="patten_chart" style="height: 400px; min-width: 200px ; max-width: 300px"></div>
+        </div>
+        <div class="span3">
+            初始設定值
+            <br> 容許誤差量:
+            <input id="input_normal_movers" type="text" name="FirstName" value="Mouse">
+            <br> 出錯機率:
+            <input id="input_mutation_Percent" type="text" name="LastName" value="Mouse">
+            <br> 出錯改變量:
+            <input id="input_mutation_movers" type="text" name="LastName" value="Mouse">
+            <hr>
+        </div>
+        <div class="span4">
+            <table id="mytable" class="table" style="display: block; height: 400px; overflow-y: scroll">
+                <tr>
+                    <td width="150px">出錯時間</td>
+                    <td width="150px">誤差值</td>
+                    <td width="150px">狀態</td>
+                </tr>
+            </table>
+            <button type="button" onclick="remove_data()">Clear</button>
+        </div>
+    </div>
+</body>
+<script>
+document.getElementById("input_normal_movers").value = threshold_Percent + "%";
+document.getElementById("input_mutation_Percent").value = mutation_Percent * 100 + "%";
+document.getElementById("input_mutation_movers").value = mutation_movers * 100 + "%";
+
+function remove_data() {
+    //先取得目前的row數
+    var num = document.getElementById("mytable").rows.length;
+    //防止把標題跟原本的第一個刪除XD
+    if (num > 1) {
+        //刪除最後一個
+        document.getElementById("mytable").deleteRow(-1);
+    }
+}
+</script>
